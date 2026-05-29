@@ -63,9 +63,10 @@ def formulate(
     processing_method: str = DEFAULT_PROCESSING_METHOD,
     premix_enabled: bool = True,
     premix_rate: float = DEFAULT_PREMIX_RATE,
-    max_fishmeal_cost_share: float = DEFAULT_MAX_FISHMEAL_COST_SHARE,
-    max_binder_inclusion: float = DEFAULT_MAX_BINDER_INCLUSION,
+    max_fishmeal_cost_share: Optional[float] = DEFAULT_MAX_FISHMEAL_COST_SHARE,
+    max_binder_inclusion: Optional[float] = DEFAULT_MAX_BINDER_INCLUSION,
     custom_premix_mask_codes: Optional[list[str]] = None,
+    batch_size_kg: Optional[float] = None,
 ) -> FormulateResponse:
     """Run the LP and return a structured response.
 
@@ -79,6 +80,8 @@ def formulate(
         return _err_response(
             species, stage, production_system, processing_method,
             premix_enabled, premix_rate,
+            max_fishmeal_cost_share, max_binder_inclusion,
+            batch_size_kg,
             "No priced ingredients overlap with the configured pool.",
         )
 
@@ -139,6 +142,9 @@ def formulate(
             ),
             premix_enabled=premix_enabled,
             premix_rate=premix_rate,
+            max_fishmeal_cost_share=max_fishmeal_cost_share,
+            max_binder_inclusion=max_binder_inclusion,
+            batch_size_kg=batch_size_kg,
         )
 
     # ---------- 4. extract & decorate solution ------------------------------ #
@@ -152,12 +158,14 @@ def formulate(
         if frac < SOLUTION_FRACTION_TOL:
             continue
         rec = pool_by_code[code]
+        qty_kg = round(frac * batch_size_kg, 3) if batch_size_kg is not None else None
         recipe.append(IngredientLine(
             code=code,
             description=rec.description,
             inclusion_percent=round(frac * 100.0, 4),
             cost_per_kg=prices[code],
             cost_contribution=round(frac * prices[code], 6),
+            quantity_kg=qty_kg,
         ))
         if frac > WARN_INGREDIENT_INCLUSION_THRESHOLD:
             warnings.append(
@@ -171,6 +179,14 @@ def formulate(
     )
 
     recipe.sort(key=lambda r: -r.inclusion_percent)
+
+    total_cost = round(cost * batch_size_kg, 2) if batch_size_kg is not None else None
+    premix_qty_kg = (
+        round(batch_size_kg * premix_rate, 3)
+        if batch_size_kg is not None and premix_enabled
+        else None
+    )
+
     return FormulateResponse(
         status="optimal",
         species=species, stage=stage, production_system=production_system,
@@ -181,6 +197,11 @@ def formulate(
         warnings=warnings,
         premix_enabled=premix_enabled,
         premix_rate=premix_rate,
+        max_fishmeal_cost_share=max_fishmeal_cost_share,
+        max_binder_inclusion=max_binder_inclusion,
+        batch_size_kg=batch_size_kg,
+        premix_quantity_kg=premix_qty_kg,
+        total_cost=total_cost,
     )
 
 
@@ -195,8 +216,8 @@ def _build_pulp_problem(
     prices: dict[str, float],
     constraints: list[LinearConstraint],
     premix_rate: float,
-    max_fishmeal_cost_share: float,
-    max_binder_inclusion: float,
+    max_fishmeal_cost_share: Optional[float],
+    max_binder_inclusion: Optional[float],
 ):
     prob = pulp.LpProblem("FASA_FeedFormulation", pulp.LpMinimize)
 
@@ -222,15 +243,15 @@ def _build_pulp_problem(
         elif con.restriction_type == "Ratio":
             prob += lhs == con.rhs, name
 
-    # binder cap
+    # binder cap — opt-in; skipped when None or 1.0
     binders = [c for c in ingr_codes if pool_by_code[c].is_binder]
-    if binders and max_binder_inclusion < 1.0:
+    if binders and max_binder_inclusion is not None and max_binder_inclusion < 1.0:
         prob += pulp.lpSum(x[c] for c in binders) <= max_binder_inclusion, "BinderCap"
 
-    # fish-meal cost-share cap:
+    # fish-meal cost-share cap — opt-in; skipped when None or 1.0
     #   Σ_{i ∈ FM} price_i * x_i  <=  share *  Σ_i price_i * x_i
     fishmeals = [c for c in ingr_codes if pool_by_code[c].is_fishmeal]
-    if fishmeals and max_fishmeal_cost_share < 1.0:
+    if fishmeals and max_fishmeal_cost_share is not None and max_fishmeal_cost_share < 1.0:
         fm_cost = pulp.lpSum(prices[c] * x[c] for c in fishmeals)
         all_cost = pulp.lpSum(prices[c] * x[c] for c in ingr_codes)
         prob += fm_cost <= max_fishmeal_cost_share * all_cost, "FishMealCostShareCap"
@@ -359,10 +380,19 @@ def _apply_anti_nutrient_digestibility_penalties(
     return constraints
 
 
-def _err_response(species, stage, system, method, premix_enabled, premix_rate, msg):
+def _err_response(
+    species, stage, system, method,
+    premix_enabled, premix_rate,
+    max_fishmeal_cost_share, max_binder_inclusion,
+    batch_size_kg,
+    msg,
+):
     return FormulateResponse(
         status="error",
         species=species, stage=stage, production_system=system,
         processing_method=method, warnings=[msg],
         premix_enabled=premix_enabled, premix_rate=premix_rate,
+        max_fishmeal_cost_share=max_fishmeal_cost_share,
+        max_binder_inclusion=max_binder_inclusion,
+        batch_size_kg=batch_size_kg,
     )

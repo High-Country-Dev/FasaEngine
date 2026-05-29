@@ -38,12 +38,42 @@ class FormulateRequest(BaseModel):
         max_length=300,
     )
 
+    batch_size_kg: Optional[float] = Field(
+        default=None,
+        gt=0,
+        le=1_000_000,
+        description=(
+            "Optional total batch size in kg. When supplied, the response includes "
+            "per-ingredient quantity_kg, premix_quantity_kg, and total_cost. "
+            "Omit to receive percent-only output."
+        ),
+    )
+
     processing_method: Literal["pelleted", "extruded"] = "pelleted"
     premix_enabled: bool = True
     premix_rate: float = Field(0.005, ge=0.0, lt=0.10)
 
-    max_fishmeal_cost_share: float = Field(0.20, ge=0.0, le=1.0)
-    max_binder_inclusion:    float = Field(0.25, ge=0.0, le=1.0)
+    max_fishmeal_cost_share: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Optional cap on fish-meal cost share (fraction of total recipe cost). "
+            "Omit (or send null) to apply no cap — cost alone then drives fish-meal "
+            "inclusion. Kept as an opt-in advisory input for callers that want to "
+            "force a sustainability ceiling."
+        ),
+    )
+    max_binder_inclusion: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Optional cap on collective binder mass fraction. Omit (or send null) "
+            "to apply no cap — appropriate when the binder product's manufacturer-"
+            "recommended inclusion rate is unknown. Kept as an opt-in advisory input."
+        ),
+    )
 
     custom_premix_mask_codes: Optional[List[str]] = Field(
         default=None,
@@ -82,6 +112,7 @@ class IngredientLine(BaseModel):
     inclusion_percent: float
     cost_per_kg: float
     cost_contribution: float
+    quantity_kg: Optional[float] = None
 
 
 class NutrientLine(BaseModel):
@@ -119,6 +150,13 @@ class FormulateResponse(BaseModel):
     # always echoed back so the API client can display them
     premix_enabled: bool
     premix_rate: float
+    max_fishmeal_cost_share: Optional[float] = None
+    max_binder_inclusion: Optional[float] = None
+
+    # populated only when batch_size_kg was supplied on the request
+    batch_size_kg: Optional[float] = None
+    premix_quantity_kg: Optional[float] = None
+    total_cost: Optional[float] = None
 
 
 class HealthResponse(BaseModel):
