@@ -39,3 +39,5 @@ pytest-cache-files-*/
 
 # Other
 start.txt
+local-docs/
+.playwright-mcp/

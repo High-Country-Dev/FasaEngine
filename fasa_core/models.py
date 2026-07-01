@@ -170,6 +170,19 @@ class SupportedResponse(BaseModel):
     stages_by_species_and_system: Dict[str, Dict[str, List[str]]]
 
 
+class IngredientPoolLine(BaseModel):
+    code: str
+    description: str
+    category: str
+    is_fishmeal: bool
+    is_binder: bool
+    max_inclusion: Optional[float] = None
+
+
+class IngredientsResponse(BaseModel):
+    ingredients: List[IngredientPoolLine]
+
+
 class ValidateRecipeResponse(BaseModel):
     composition: Dict[str, float]
 

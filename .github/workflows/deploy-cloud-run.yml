@@ -2,8 +2,6 @@ name: Deploy Cloud Run
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 env:
   REGION: ${{ vars.GCP_REGION }}
