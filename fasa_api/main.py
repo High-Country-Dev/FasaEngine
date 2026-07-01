@@ -6,6 +6,7 @@ Run locally:
 Endpoints:
     GET  /health                                    liveness probe
     GET  /supported                                 enumerate species/stages/systems
+    GET  /ingredients                               list the active ingredient pool
     POST /formulate                                 run the LP
     POST /validate-recipe                           recompute composition for an explicit recipe
 """
@@ -31,11 +32,13 @@ from fasa_core.config.defaults import (
     SUPPORTED_SPECIES,
 )
 from fasa_core.data_loader import list_supported_stages, load_ficd_wide
+from fasa_core.ingredient_pool import load_pool
 from fasa_core.models import (
     ErrorResponse,
     FormulateRequest,
     FormulateResponse,
     HealthResponse,
+    IngredientsResponse,
     SupportedResponse,
     ValidateRecipeRequest,
     ValidateRecipeResponse,
@@ -156,6 +159,32 @@ def supported(_: None = Depends(_require_auth)) -> SupportedResponse:
     return {"species": SUPPORTED_SPECIES,
             "production_systems": SUPPORTED_PRODUCTION_SYSTEMS,
             "stages_by_species_and_system": out}
+
+
+@app.get(
+    "/ingredients",
+    response_model=IngredientsResponse,
+    tags=["api"],
+    summary="List selectable ingredients (the active availability pool)",
+    responses={
+        401: {"model": ErrorResponse, "description": "Missing or invalid token"},
+    },
+)
+def ingredients(_: None = Depends(_require_auth)) -> IngredientsResponse:
+    pool = load_pool()
+    return {
+        "ingredients": [
+            {
+                "code": r.code,
+                "description": r.description,
+                "category": r.cls,
+                "is_fishmeal": r.is_fishmeal,
+                "is_binder": r.is_binder,
+                "max_inclusion": r.max_inclusion,
+            }
+            for r in pool
+        ]
+    }
 
 
 @app.post(

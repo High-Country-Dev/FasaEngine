@@ -7,6 +7,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Added
+- `GET /ingredients` endpoint returning the active ingredient availability pool (code, description, category, `is_fishmeal`/`is_binder` flags, and `max_inclusion`) so client UIs can list and select ingredients without hardcoding the pool.
+
 ## [0.2.0] - 2026-05-29
 
 ### Added
