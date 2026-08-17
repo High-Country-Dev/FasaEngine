@@ -9,6 +9,7 @@ Endpoints:
     GET  /ingredients                               list the active ingredient pool
     POST /formulate                                 run the LP
     POST /validate-recipe                           recompute composition for an explicit recipe
+    POST /evaluate-recipe                           score a self-reported recipe against the spec
 """
 
 from __future__ import annotations
@@ -36,6 +37,8 @@ from fasa_core.data_loader import list_supported_stages, load_ficd_wide
 from fasa_core.ingredient_pool import load_pool
 from fasa_core.models import (
     ErrorResponse,
+    EvaluateRecipeRequest,
+    EvaluateRecipeResponse,
     FormulateRequest,
     FormulateResponse,
     HealthResponse,
@@ -44,6 +47,7 @@ from fasa_core.models import (
     ValidateRecipeRequest,
     ValidateRecipeResponse,
 )
+from fasa_core.evaluator import evaluate_recipe
 from fasa_core.optimizer import formulate
 from fasa_core.validator import compute_composition
 
@@ -285,3 +289,73 @@ def validate_recipe(
         )
     df = compute_composition(req.fractions, parameters=req.parameters)
     return {"composition": df["value"].round(6).to_dict()}
+
+
+@app.post(
+    "/evaluate-recipe",
+    response_model=EvaluateRecipeResponse,
+    tags=["api"],
+    summary="Score a self-reported recipe against the nutrition specification",
+    responses={
+        400: {"model": ErrorResponse, "description": "Bad request"},
+        401: {"model": ErrorResponse, "description": "Missing or invalid token"},
+        422: {"model": ErrorResponse, "description": "Validation error"},
+    },
+)
+def evaluate_recipe_endpoint(
+    req: EvaluateRecipeRequest,
+    _: None = Depends(_require_auth),
+) -> EvaluateRecipeResponse:
+    LOGGER.info(
+        "evaluate.request species=%s stage=%s system=%s country=%s ingredients=%d",
+        req.species,
+        req.stage,
+        req.production_system,
+        req.country,
+        len(req.fractions),
+    )
+    if req.species not in SUPPORTED_SPECIES:
+        raise HTTPException(
+            status_code=400,
+            detail=_error("unsupported_species", "Unsupported species in MVP.", req.species),
+        )
+    if req.production_system not in SUPPORTED_PRODUCTION_SYSTEMS:
+        raise HTTPException(
+            status_code=400,
+            detail=_error(
+                "unsupported_production_system",
+                "Unsupported production system in MVP.",
+                req.production_system,
+            ),
+        )
+    if any(v < 0.0 or v > 1.0 for v in req.fractions.values()):
+        raise HTTPException(
+            status_code=400,
+            detail=_error("invalid_fraction", "All fraction values must be within [0,1]."),
+        )
+
+    try:
+        result = evaluate_recipe(
+            species=req.species,
+            stage=req.stage,
+            production_system=req.production_system,
+            fractions=req.fractions,
+            processing_method=req.processing_method,
+            premix_enabled=req.premix_enabled,
+            premix_rate=req.premix_rate,
+            custom_premix_mask_codes=req.custom_premix_mask_codes,
+            country=req.country,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=_error("invalid_recipe", str(e)),
+        ) from e
+
+    LOGGER.info(
+        "evaluate.result in_spec=%s safe=%s breaches=%d",
+        result.in_spec,
+        result.safe,
+        len(result.guidance),
+    )
+    return result
