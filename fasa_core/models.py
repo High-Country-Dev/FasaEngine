@@ -146,6 +146,51 @@ class NutrientLine(BaseModel):
     masked_by_premix: bool = False
 
 
+class EvaluateRecipeRequest(BaseModel):
+    """JSON payload accepted by POST /evaluate-recipe."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    species: Literal["Nile Tilapia", "African Catfish"]
+    stage: str = Field(
+        ...,
+        description="ASNS stage_weight label, e.g. '< 5g (Starter)'.",
+        examples=["< 5g (Starter)"],
+    )
+    production_system: Literal["General-LowCost", "General"] = "General-LowCost"
+    fractions: Dict[str, float] = Field(
+        ...,
+        description="FICD ingredient code -> mass fraction in [0, 1]; must sum to 1.",
+        min_length=1,
+        max_length=300,
+    )
+    country: Optional[Literal["KE", "NG", "ZM"]] = None
+    processing_method: Literal["pelleted", "extruded"] = "pelleted"
+    premix_enabled: bool = True
+    premix_rate: float = Field(default=0.005, ge=0.0, lt=0.1)
+    custom_premix_mask_codes: Optional[List[str]] = Field(default=None, max_length=200)
+
+
+class EvaluateRecipeResponse(BaseModel):
+    """Verdict for a recipe the caller already makes."""
+
+    status: Literal["ok", "error"]
+    species: str
+    stage: str
+    production_system: str
+    country: Optional[str] = None
+    total_fraction: float
+    in_spec: bool = Field(..., description="True when every spec, toxins included, is met.")
+    safe: bool = Field(..., description="True when no TX* toxicity ceiling is breached.")
+    composition: List["NutrientLine"] = Field(default_factory=list)
+    toxicity: List["NutrientLine"] = Field(
+        default_factory=list,
+        description="TX* lines, separated because they are never masked by premix.",
+    )
+    guidance: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
+
+
 class InfeasibilityReport(BaseModel):
     """Returned only when the LP is infeasible at the supplied prices/pool."""
 
