@@ -91,3 +91,30 @@ def attach_ficd_rows(records: list[IngredientRecord]) -> pd.DataFrame:
             f"{sorted(missing)}"
         )
     return sub.set_index("code").reindex(codes).reset_index()
+
+
+def reference_nutrients(codes: list[str]) -> dict[str, dict[str, float]]:
+    """Reference nutrient values for the parameters a caller may override.
+
+    Callers need the background figure to show alongside a miller's own, so this
+    exposes exactly the parameters `overrides.REPORTED_PARAMS` allows and nothing
+    else. Values are read from a fresh subset, never from the cached frame.
+    """
+    from .overrides import REPORTED_PARAMS
+
+    ficd = load_ficd_wide()
+    present = [p for p in REPORTED_PARAMS if p in ficd.columns]
+    if not present:
+        return {}
+
+    sub = ficd[ficd["code"].isin(codes)]
+    out: dict[str, dict[str, float]] = {}
+    for row in sub[["code", *present]].itertuples(index=False):
+        values = {}
+        for param, value in zip(present, row[1:]):
+            if pd.isna(value):
+                continue
+            values[param] = round(float(value), 4)
+        if values:
+            out[str(row[0])] = values
+    return out

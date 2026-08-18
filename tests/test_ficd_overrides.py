@@ -184,3 +184,38 @@ def test_a_plausible_correction_is_not_warned_about():
         attach_ficd_rows(pool), {RICE_BRAN: {"crude_protein_percent": 8.0}}
     )
     assert warnings == []
+
+
+def test_reference_nutrients_covers_every_pool_ingredient():
+    from fasa_core.ingredient_pool import load_pool, reference_nutrients
+    from fasa_core.overrides import REPORTED_PARAMS
+
+    pool = load_pool()
+    reported = reference_nutrients([r.code for r in pool])
+
+    assert set(reported) == {r.code for r in pool}
+    for values in reported.values():
+        assert set(values) == set(REPORTED_PARAMS)
+
+
+def test_reference_nutrients_never_reports_a_locked_parameter():
+    from fasa_core.ingredient_pool import load_pool, reference_nutrients
+    from fasa_core.overrides import locked_params
+
+    pool = load_pool()
+    reported = reference_nutrients([r.code for r in pool[:5]])
+    locked = locked_params()
+
+    for values in reported.values():
+        assert not (set(values) & locked)
+
+
+def test_reference_nutrients_does_not_mutate_the_cached_frame():
+    from fasa_core.data_loader import load_ficd_wide
+    from fasa_core.ingredient_pool import reference_nutrients
+
+    before = load_ficd_wide().copy(deep=True)
+    reference_nutrients(["30937"])
+    after = load_ficd_wide()
+
+    assert before.equals(after)

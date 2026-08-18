@@ -265,6 +265,7 @@ class IngredientPoolLine(BaseModel):
     is_binder: bool
     max_inclusion: Optional[float] = None
     countries: List[str] = []
+    nutrients: Dict[str, float] = {}
 
 
 class IngredientsResponse(BaseModel):

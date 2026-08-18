@@ -32,6 +32,15 @@ PROXIMATE_PARAMS = (
     "ash_percent",
 )
 
+REPORTED_PARAMS = (
+    "crude_protein_percent",
+    "crude_lipids_percent",
+    "crude_fibre_percent",
+    "moisture_percent",
+    "lysine_percent",
+    "methionine_percent",
+)
+
 MAX_OVERRIDDEN_CODES = 300
 MAX_PARAMS_PER_CODE = 40
 

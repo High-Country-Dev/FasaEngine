@@ -38,7 +38,7 @@ from fasa_core.config.defaults import (
     SUPPORTED_SPECIES,
 )
 from fasa_core.data_loader import list_supported_stages, load_ficd_wide
-from fasa_core.ingredient_pool import load_pool
+from fasa_core.ingredient_pool import load_pool, reference_nutrients
 from fasa_core.models import (
     ErrorResponse,
     EvaluateRecipeRequest,
@@ -182,6 +182,7 @@ def supported(_: None = Depends(_require_auth)) -> SupportedResponse:
 )
 def ingredients(_: None = Depends(_require_auth)) -> IngredientsResponse:
     pool = load_pool()
+    nutrients = reference_nutrients([r.code for r in pool])
     return {
         "ingredients": [
             {
@@ -192,6 +193,7 @@ def ingredients(_: None = Depends(_require_auth)) -> IngredientsResponse:
                 "is_binder": r.is_binder,
                 "max_inclusion": r.max_inclusion,
                 "countries": sorted(r.countries),
+                "nutrients": nutrients.get(r.code, {}),
             }
             for r in pool
         ]
