@@ -93,6 +93,15 @@ class FormulateRequest(BaseModel):
         ),
     )
 
+    ficd_overrides: Optional[Dict[str, Dict[str, float]]] = Field(
+        default=None,
+        description=(
+            "Per-ingredient nutrient replacements: FICD code -> parameter -> value. "
+            "Applied on top of the reference database for this request only. "
+            "Parameters backing a TX* toxicity ceiling are rejected."
+        ),
+        max_length=300,
+    )
     custom_premix_mask_codes: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -169,6 +178,15 @@ class EvaluateRecipeRequest(BaseModel):
     premix_enabled: bool = True
     premix_rate: float = Field(default=0.005, ge=0.0, lt=0.1)
     custom_premix_mask_codes: Optional[List[str]] = Field(default=None, max_length=200)
+    ficd_overrides: Optional[Dict[str, Dict[str, float]]] = Field(
+        default=None,
+        description=(
+            "Per-ingredient nutrient replacements: FICD code -> parameter -> value. "
+            "Applied on top of the reference database for this request only. "
+            "Parameters backing a TX* toxicity ceiling are rejected."
+        ),
+        max_length=300,
+    )
 
 
 class EvaluateRecipeResponse(BaseModel):

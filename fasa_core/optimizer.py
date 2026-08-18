@@ -69,6 +69,7 @@ def formulate(
     custom_premix_mask_codes: Optional[list[str]] = None,
     batch_size_kg: Optional[float] = None,
     country: Optional[str] = None,
+    ficd_overrides: Optional[dict[str, dict[str, float]]] = None,
 ) -> FormulateResponse:
     """Run the LP and return a structured response.
 
@@ -104,6 +105,7 @@ def formulate(
         premix_enabled=premix_enabled,
         premix_rate=premix_rate,
         premix_mask_override=custom_premix_mask_codes,
+        ficd_overrides=ficd_overrides,
     )
 
     # MVP placeholder hook (no-op). Wire in non-additive interaction corrections

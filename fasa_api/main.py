@@ -10,6 +10,10 @@ Endpoints:
     POST /formulate                                 run the LP
     POST /validate-recipe                           recompute composition for an explicit recipe
     POST /evaluate-recipe                           score a self-reported recipe against the spec
+
+Both POST endpoints accept optional `ficd_overrides` so a caller can substitute
+its own nutrient values for named ingredients. Parameters backing a TX*
+toxicity ceiling are refused.
 """
 
 from __future__ import annotations
@@ -251,6 +255,7 @@ def formulate_endpoint(
             custom_premix_mask_codes=req.custom_premix_mask_codes,
             batch_size_kg=req.batch_size_kg,
             country=req.country,
+            ficd_overrides=req.ficd_overrides,
         )
         elapsed_ms = (time.perf_counter() - started_at) * 1000.0
         LOGGER.info(
@@ -345,6 +350,7 @@ def evaluate_recipe_endpoint(
             premix_rate=req.premix_rate,
             custom_premix_mask_codes=req.custom_premix_mask_codes,
             country=req.country,
+            ficd_overrides=req.ficd_overrides,
         )
     except ValueError as e:
         raise HTTPException(
