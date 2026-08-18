@@ -120,6 +120,7 @@ def evaluate_recipe(
     premix_rate: float = DEFAULT_PREMIX_RATE,
     custom_premix_mask_codes: Optional[list[str]] = None,
     country: Optional[str] = None,
+    ficd_overrides: Optional[dict[str, dict[str, float]]] = None,
 ) -> EvaluateRecipeResponse:
     """Score an explicit recipe against the active specification.
 
@@ -155,6 +156,7 @@ def evaluate_recipe(
         premix_enabled=premix_enabled,
         premix_rate=premix_rate,
         premix_mask_override=custom_premix_mask_codes,
+        ficd_overrides=ficd_overrides,
     )
 
     report = [_line_for(con, fractions) for con in constraints]

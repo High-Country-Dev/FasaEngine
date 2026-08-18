@@ -31,6 +31,7 @@ import pandas as pd
 
 from . import crosswalk
 from .data_loader import get_active_constraints
+from .overrides import apply_overrides
 from .ingredient_pool import IngredientRecord, attach_ficd_rows
 
 
@@ -58,6 +59,7 @@ def build_constraints(
     premix_enabled: bool = True,
     premix_rate: float = 0.005,
     premix_mask_override: Optional[list[str]] = None,
+    ficd_overrides: Optional[dict[str, dict[str, float]]] = None,
 ) -> tuple[list[LinearConstraint], list[str]]:
     """Materialize the active constraint set.
 
@@ -67,7 +69,10 @@ def build_constraints(
     warnings    : list[str] — non-fatal notes (unmappable specs, etc.)
     """
     asns_active = get_active_constraints(species, stage, production_system)
-    ficd_pool = attach_ficd_rows(pool).set_index("code")
+    ficd_frame, override_warnings = apply_overrides(
+        attach_ficd_rows(pool), ficd_overrides
+    )
+    ficd_pool = ficd_frame.set_index("code")
 
     mask = (
         crosswalk.premix_mask_codes(stage, premix_mask_override)
@@ -76,7 +81,7 @@ def build_constraints(
     )
 
     out: list[LinearConstraint] = []
-    warnings: list[str] = []
+    warnings: list[str] = list(override_warnings)
 
     for _, row in asns_active.iterrows():
         code = row["code"]
