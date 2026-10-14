@@ -42,7 +42,7 @@ Project changes are tracked in [`CHANGELOG.md`](CHANGELOG.md).
 - **Linear programming engine** (PuLP + HiGHS) that solves a digestibility-aware least-cost feed formulation against the active ASNS constraints for a chosen species/stage/production-system tuple.
 - **Premix-aware constraint masking**: vitamins and trace minerals are assumed satisfied by a fixed-rate vitamin/mineral premix (default 0.5%), keeping the LP focused on macros, amino acids, digestible energy, Ca, P, fatty acids, and toxin ceilings.
 - **Hard ceilings on toxins / anti-nutrients**: aflatoxin B, gossypol, phytic acid, glucosinolates, tannins, etc. are enforced as Maximum constraints regardless of premix or override settings.
-- **Min/max inclusion layer**: a second layer of bounds on top of composition data, because nutrient tables alone let the LP build diets that pass every target yet cannot be extruded or grown on. `fasa_core/config/nutrient_limits.csv` adds Minimum/Maximum bounds on dietary nutrient levels (the tighter of ASNS and the limit binds); `fasa_core/config/ingredient_limits.csv` bounds how much of any single ingredient may go in. Both ship empty pending the data — filling the columns activates them with no code change — and either can be supplied per request via `nutrient_limits` / `ingredient_limits`.
+- **Min/max inclusion layer**: a second layer of bounds on top of composition data, because nutrient tables alone let the LP build diets that pass every target yet cannot be extruded or grown on. `fasa_core/config/nutrient_limits.csv` adds Minimum/Maximum bounds on dietary nutrient levels (the tighter of ASNS and the limit binds); `fasa_core/config/ingredient_limits.csv` bounds how much of any single ingredient may go in. The ingredient table carries per-species maximums for 75 pool ingredients; the nutrient table ships empty pending the data, and filling its columns activates it with no code change. Either can be supplied per request via `nutrient_limits` / `ingredient_limits`.
 - **Opt-in advisory caps**: collective binder mass cap and fish-meal cost-share cap are available as optional inputs but are *not* applied by default. Toxicity and ASNS nutrient limits remain the only fixed constraints; callers that want to force a sustainability or pellet-quality ceiling can pass `max_fishmeal_cost_share` and/or `max_binder_inclusion` explicitly.
 - **Hard-fail with IIS reporting**: when the constraint set is infeasible at the supplied prices/pool, a deletion-filter algorithm extracts a minimal Irreducible Inconsistent Subset of constraints and returns it to the caller so the miller knows exactly why the recipe could not be built.
 - **PAFF benchmark gate**: independent recomputation of PAFF reference recipes' nutrient composition acts as the correctness test for the data-loading and crosswalk pipeline.
@@ -78,6 +78,7 @@ fasa_engine/
 │   └── main.py                         FastAPI app
 ├── scripts/
 │   ├── build_ingredient_pool.py        regenerates the country-tagged pool CSV
+│   ├── import_datasets.py              converts raw ASNS/FICD exports into data/
 │   └── data/countries_pool.csv         source country list (builder input)
 ├── tests/test_smoke.py                 pytest smoke + PAFF reproduction
 ├── examples/tilapia_starter_demo.py    runnable end-to-end demo
@@ -94,6 +95,19 @@ This engine needs four CSVs (committed under `data/` by default):
 - `data/PAFF_practical_aquaculture_feed_formulation_database_Calculated_Composition.csv` (reference calculated composition)
 
 Filenames are currently **expected to match exactly** (see `fasa_core/config/defaults.py`).
+
+Current versions: ASNS and FICD v11.1 (30 July 2026), PAFF v6.0 (3 December 2025).
+
+Known data issues in FICD v11.1 (iodine carried over from the previous release; one new pool
+ingredient without DE values): see [docs/testing-guide.md §3–4](docs/testing-guide.md#3-ingredient-composition-database--ficd).
+
+To update ASNS and FICD from new FASA exports, convert them into this layout, then rebuild the
+ingredient pool (it reads FICD codes):
+
+```bash
+python scripts/import_datasets.py "ASNS <date>.csv" "FICD <date>.csv"
+python scripts/build_ingredient_pool.py
+```
 
 ## Quickstart
 

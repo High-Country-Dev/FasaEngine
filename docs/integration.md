@@ -81,7 +81,8 @@ Recommended client behavior:
   get back a **percentage** (`"max_inclusion_percent": 15.0`). Out-of-range request values
   are rejected with 422, so `15` sent for 15% fails loudly, but rendering `0.15` as "0.15%"
   fails silently — convert in both directions. Nutrient limits are not rescaled: they go in
-  and come back in that spec code's ASNS unit.
+  and come back in that spec code's ASNS unit. Since the v11.1 datasets, Vitamin A (`V10`)
+  and Vitamin D (`V11`) are in IU/kg (previously mg and µg).
 - Handle `status` in response (`optimal`, `infeasible`, `error`).
 - On `infeasible`, check `infeasibility.bound_conflicts` before `iis_codes`: when it is
   non-empty the ingredient inclusion limits alone cannot add up to the feed mass and no
@@ -90,7 +91,9 @@ Recommended client behavior:
   post it to `/validate-recipe` with the same `species`/`stage`/`production_system` and
   any limit overrides. It returns `in_limits`, per-ingredient `inclusion_checks`, and
   `nutrient_checks` in the same shape as `/formulate`'s `composition`. All fields other
-  than `fractions` are optional, so existing callers are unaffected.
+  than `fractions` are optional, so existing callers are unaffected. `parameters` takes
+  FICD parameter names; a name the current FICD does not carry returns 400. FICD v11.1
+  removed the 52 porcine/poultry digestibility parameters (`sid_*`, `sidc_*`).
 - Log request IDs (if the calling client or service provides them) for easier debugging.
 
 ## 7) Upgrade playbook

@@ -157,3 +157,13 @@ def test_validate_recipe_rejects_an_unknown_stage():
                     headers={"Authorization": "Bearer abc123"})
     assert r.status_code == 400
     assert r.json()["detail"]["code"] == "invalid_request"
+
+
+def test_validate_recipe_rejects_an_unknown_parameter():
+    """A name FICD does not carry (e.g. one dropped in v11.1) is a 400, not a 500."""
+    client = _client(auth_required=True, token="abc123")
+    payload = {"fractions": {"30355": 0.995}, "parameters": ["sid_lys_porcine_percent"]}
+    r = client.post("/validate-recipe", json=payload,
+                    headers={"Authorization": "Bearer abc123"})
+    assert r.status_code == 400
+    assert "sid_lys_porcine_percent" in r.json()["detail"]["details"]

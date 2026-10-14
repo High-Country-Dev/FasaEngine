@@ -35,7 +35,8 @@ The project provides an API that helps formulate fish feed recipes based on:
 
 ## Data model today
 
-- Core data is kept in repository CSV files under `data/`.
+- Core data is kept in repository CSV files under `data/`. New ASNS/FICD exports are
+  converted into that layout by `scripts/import_datasets.py`.
 - This keeps the setup simple and reproducible.
 - The current data changes infrequently.
 - The ingredient pool (`fasa_core/config/ingredient_pool_africa.csv`) is country-aware:
@@ -47,9 +48,9 @@ The project provides an API that helps formulate fish feed recipes based on:
   `fasa_core/config/nutrient_limits.csv` (bounds on dietary nutrient levels) and
   `fasa_core/config/ingredient_limits.csv` (bounds on single-ingredient inclusion).
   They express what a mill can actually formulate and process, which composition data
-  alone does not. Both ship without data rows pending the values; filling the columns
-  activates the layer with no code change, and clients can supply bounds per request
-  in the meantime.
+  alone does not. The ingredient table carries per-species maximums; the nutrient table
+  ships without data rows pending the values, and filling its columns activates it with
+  no code change. Clients can also supply bounds per request.
 
 ## Versioning and changes
 

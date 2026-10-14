@@ -6,8 +6,8 @@ composition table (fibre ceilings, per-ingredient palatability/extrudability cap
 minimum carrier levels). Without it a least-cost LP happily returns diets that meet
 every nutrient target yet cannot be extruded or will not grow fish.
 
-Two config files, both shipped with a documented header and no data rows yet (so the
-engine behaves exactly as before until the columns are filled):
+Two config files. The ingredient table carries per-species maximums; the nutrient table
+ships with a documented header and no data rows yet, so ASNS alone bounds nutrients:
 
   * `config/nutrient_limits.csv`    bounds on dietary nutrient levels, keyed by ASNS code
   * `config/ingredient_limits.csv`  bounds on single-ingredient inclusion, keyed by FICD code

@@ -56,8 +56,12 @@ def compute_composition(
     re-running the LP.
     """
     ficd = load_ficd_wide()
+    available = [c for c in ficd.columns if c not in ("code", "description")]
     if parameters is None:
-        parameters = [c for c in ficd.columns if c not in ("code", "description")]
+        parameters = available
+    unknown = sorted(set(parameters) - set(available))
+    if unknown:
+        raise ValueError(f"Unknown FICD parameter(s): {', '.join(unknown)}.")
 
     frac_series = pd.Series(fractions, dtype="float64")
     sub = ficd[ficd["code"].isin(frac_series.index)].set_index("code")

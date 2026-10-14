@@ -33,6 +33,26 @@ def test_ficd_wide_pivot():
     assert "de_fish_omni_pelleted_kcal_kg" in df.columns
 
 
+def test_every_crosswalk_param_exists_in_ficd():
+    """A FICD export that renames a column must fail here, not mid-solve."""
+    columns = set(load_ficd_wide().columns)
+    for code in load_asns()["code"].unique():
+        for method in ("pelleted", "extruded"):
+            param, extra = resolve(code, processing_method=method)
+            named = {extra["numer"], extra["denom"]} if param == "__ratio__" else {param}
+            assert named - {None} <= columns, code
+
+
+def test_asns_units_match_the_crosswalk():
+    """An ASNS unit change (e.g. mg -> IU/kg) must fail here, not rescale targets silently."""
+    from fasa_core.crosswalk import spec_unit
+
+    units = load_asns().dropna(subset=["unit"]).drop_duplicates(["code", "unit"])
+    mismatched = [(r.code, r.unit, spec_unit(r.code)) for r in units.itertuples()
+                  if r.unit != spec_unit(r.code)]
+    assert not mismatched
+
+
 def test_paff_loads():
     forms, comps = load_paff()
     assert (forms["species"] == "Nile Tilapia - Starter").any()
@@ -63,9 +83,16 @@ def test_resolve_energy_processing_dependent():
 
 
 def test_resolve_vitamin_unit_conversion():
-    p, f = resolve("V10")           # Vitamin A: ASNS mg → FICD IU/kg ×3333
+    p, f = resolve("V10")           # Vitamin A: ASNS and FICD both IU/kg since v11.1
     assert p == "vitamin_a_iu_kg"
-    assert abs(f - 3333.0) < 1e-9
+    assert f == 1.0
+
+
+def test_duplicate_vitamin_codes_are_skipped_without_a_warning():
+    """V101/V111 restate V10/V11 in mg/kg and ug/kg; only V10/V11 may reach the LP."""
+    res = formulate(**BASE, premix_enabled=False)
+    assert not any("V101" in w or "V111" in w for w in res.warnings)
+    assert not {"V101", "V111"} & {line.code for line in res.composition}
 
 
 def test_resolve_ratio():
@@ -387,12 +414,25 @@ def _spec(res, code):
     return next(line for line in res.composition if line.code == code)
 
 
-def test_limits_config_files_ship_without_data_rows():
-    """The layer is wired but empty, so today's formulations are unchanged."""
-    from fasa_core.inclusion_limits import ingredient_limit_rows, nutrient_limit_rows
+def test_shipped_ingredient_limits_resolve_per_species():
+    """A row with a mistyped code or species matches nothing and is silently ignored."""
+    from fasa_core.config.defaults import SUPPORTED_SPECIES
+    from fasa_core.ingredient_pool import load_pool
+    from fasa_core.inclusion_limits import (
+        LimitScope,
+        ingredient_bounds,
+        ingredient_limit_rows,
+        nutrient_limit_rows,
+    )
 
-    assert nutrient_limit_rows() == ()
-    assert ingredient_limit_rows() == ()
+    assert nutrient_limit_rows() == ()  # nutrient half still awaits its values
+    rows = ingredient_limit_rows()
+    assert {r["key"] for r in rows} <= {rec.code for rec in load_pool()}
+    assert {r["scope"]["species"] for r in rows} <= {"", *SUPPORTED_SPECIES}
+
+    # rice bran: 30% of the diet for tilapia, 15% for catfish
+    assert ingredient_bounds(LimitScope("Nile Tilapia"), [])["30937"].maximum == 0.30
+    assert ingredient_bounds(LimitScope("African Catfish"), [])["30937"].maximum == 0.15
 
 
 def test_nutrient_limit_tighter_than_asns_replaces_the_target():
@@ -484,13 +524,18 @@ def test_a_binding_nutrient_limit_is_named_in_the_iis():
     assert any("[request]" in e for e in res.infeasibility.iis_explanations)
 
 
-def test_limits_absent_leaves_the_recipe_and_the_box_untouched():
-    """Wiring the layer in must not move today's baseline result."""
+def test_ingredients_without_a_limit_row_keep_an_open_box():
+    """An ingredient no limit row names keeps an open box; nutrients stay ASNS-only."""
+    from fasa_core.inclusion_limits import LimitScope, ingredient_bounds
+
     base = formulate(**BASE)
     if base.status != "optimal":
         pytest.skip(f"LP did not solve to optimal (status={base.status})")
-    assert all(line.limit_source is None for line in base.recipe)
-    assert all(line.max_inclusion_percent is None for line in base.recipe)
+    named = ingredient_bounds(LimitScope(BASE["species"]), [])
+    unnamed = [line for line in base.recipe if line.code not in named]
+    assert unnamed
+    assert all(line.limit_source is None for line in unnamed)
+    assert all(line.max_inclusion_percent is None for line in unnamed)
     assert all(line.source == "asns" for line in base.composition)
 
 

@@ -96,6 +96,10 @@ def build_constraints(
         rtype = row["restriction_type"]
         source = row["source"]
 
+        if source == "asns" and crosswalk.duplicate_of(code):
+            # same requirement as another code in another unit; that code binds
+            continue
+
         # --- masking rules -------------------------------------------------- #
         if code in mask and not code.startswith("TX") and source == "asns":
             # vit/trace-mineral satisfied by premix; skip silently
