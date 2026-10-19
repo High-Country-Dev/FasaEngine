@@ -71,6 +71,7 @@ def _line_for(con: LinearConstraint, fractions: dict[str, float]) -> NutrientLin
         achieved=round(achieved, 6),
         unit=con.unit,
         in_spec=bool(in_spec),
+        source=con.source,
     )
 
 
