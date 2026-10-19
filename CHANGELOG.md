@@ -5,7 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] - 2026-10-14
+
+### Added
+- A repeatable way to load new ASNS and FICD releases into the engine: `scripts/import_datasets.py` converts the files exported from the FASA database (see the README).
+
+### Changed
+- Nutrition requirements (ASNS) and ingredient composition (FICD) updated to v11.1 (30 July 2026). The PAFF reference recipes stay at v6.0 (3 December 2025). Six ingredients are new; one of them, fermented rapeseed meal (30918), joins the ingredient pool. With the test prices every species and stage gives the same kind of result as before (a recipe, or no solution), and costs per kg move by −2.9% to +2.3%.
+- Vitamin A and D requirements are now published in IU/kg and used as they are. If you send your own Vitamin A or D limits, send them in IU/kg (previously mg and µg).
+- Units in results now read per kg, e.g. `kcal/kg` and `mg/kg` instead of `kcal` and `mg`.
+- Maximum inclusion levels per species (Nile Tilapia, African Catfish) from the max-inclusion table supplied in October 2026 now apply to 17 of its 42 ingredients. These cover 75 FICD entries, because some ingredients have several FICD variants (rice bran has 7). Recipes that went over a ceiling change: with the test prices, low-cost tilapia grower diets drop from 44–51% rice bran to the 30% ceiling, at a 2–4% higher cost per kg.
+
+### Removed
+- Pig and poultry digestibility values are no longer reported by `/validate-recipe`, because FICD v11.1 no longer includes them. Remove them from any `parameters` list you send. Three values are new: proline, its share of protein, and dietary electrolyte balance.
+
+### Fixed
+- `/validate-recipe` now returns a clear "bad request" error, instead of a server error, when asked for a value the ingredient database does not hold.
+
+### Notes
+- Iodine values in the FICD v11.1 file are wrong (they repeat the dietary electrolyte balance), so the engine keeps the previous release's iodine values until a corrected file is available. The six new ingredients have no iodine value. Iodine is normally covered by the premix, so this matters only when the premix is switched off or a request sets an iodine limit.
+- Fermented rapeseed meal (30918) has no digestible energy or digestible amino acid values yet, so the engine counts them as zero.
+- 25 of the 42 rows in the max-inclusion table are not used: 24 name ingredients with no composition data, and one has no separate entry. No nutrient limits are set yet.
+- A ceiling applies to each ingredient variant separately, not to their sum: two rice brans can each reach 30%.
+
+## [0.4.0] - 2026-09-22
+
+### Added
+- Minimum/maximum inclusion layer. Nutrient composition alone is not enough to formulate on: the optimizer could return diets that met every nutrient target yet could not be extruded or produce growth, such as bran-heavy rations. Two new tables carry the limits a formulator would otherwise apply by hand — `fasa_core/config/nutrient_limits.csv` (bounds on dietary nutrient levels, by ASNS spec code) and `fasa_core/config/ingredient_limits.csv` (bounds on how much of a single ingredient may go in, by FICD code).
+- Optional `nutrient_limits` and `ingredient_limits` inputs on `/formulate`, for callers that already know the bounds they want. An entry overrides the table for the code it names.
+- `recipe[]` lines now carry the limit applied to each ingredient (`min_inclusion_percent`, `max_inclusion_percent`, `limit_source`), and `composition[]` lines carry `source`, saying whether a target came from the species requirement or from the limit layer.
+- `infeasibility.bound_conflicts` explains, in plain language, ingredient limits that cannot add up to a full batch — the one failure the existing conflict report cannot describe.
+- `/validate-recipe` now checks a recipe's inclusion rates, not only its composition. Optional `species`, `stage`, `production_system`, `processing_method`, `premix_enabled` and the two limit inputs scope the check; `in_limits`, `inclusion_checks`, `nutrient_checks`, `total_inclusion_percent` and `warnings` report the result. Existing payloads are unaffected.
+- `/ready` also loads the two limit tables, so a malformed table is caught at deploy time rather than on the first request.
+
+### Changed
+- An ingredient given a `0` maximum is left out of the recipe even when it is priced, and the response names it in a warning — so "we should not recommend this at all" is distinguishable from "too expensive today".
+- Where a limit and the species requirement bound the same nutrient, the tighter of the two applies. A limit can never relax an ASNS requirement.
+
+### Fixed
+- A recipe returned by `/formulate` no longer reads as out of spec when sent straight back to `/validate-recipe`. Both endpoints now score achieved-versus-target through the same code, with a tolerance that allows for the rounding in the published inclusion percentages.
+
+### Notes
+- Both tables ship with documented headers and **no data rows** — the values are still being compiled, so formulations are unchanged until the columns are filled. Activating them needs no code change.
+- Ingredient limits are written and sent as a mass fraction of total feed (`0.15` = 15%) but reported back as a percentage (`max_inclusion_percent: 15.0`). Nutrient limits use the ASNS unit of their spec code and are not rescaled.
 
 ### Added
 - `GET /ingredients` endpoint returning the active ingredient availability pool (code, description, category, `is_fishmeal`/`is_binder` flags, `max_inclusion`, and the `countries` local-availability tags) so client UIs can list and select ingredients without hardcoding the pool.

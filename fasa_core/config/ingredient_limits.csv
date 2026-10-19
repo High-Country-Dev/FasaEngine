@@ -1,0 +1,195 @@
+# FASA ingredient inclusion limits — safe/practical bounds on SINGLE-INGREDIENT inclusion.
+#
+# Nutrient composition alone is not enough to formulate on: an ingredient can satisfy every
+# nutrient constraint and still be unusable at the level the LP picked (pellet durability,
+# extrudability, palatability, bulk density, rancidity, anti-nutrient load). This file
+# carries the per-ingredient ceiling/floor a formulator would apply by hand.
+#
+# Effect on the LP: the bounds become the decision variable's box, i.e.
+#   min_inclusion <= x_code <= max_inclusion
+# A max of 0 removes the ingredient from consideration entirely, even when it is priced
+# (the response then carries a "[limit]" warning naming it). A min only applies to
+# ingredients the caller actually priced — the engine cannot force in an ingredient it has
+# no price for.
+#
+# Columns:
+#   code                FICD ingredient code (must be present in the ingredient pool).
+#   species             blank = all. Exact match ("Nile Tilapia" | "African Catfish").
+#   production_system   blank = all. Exact match ("General-LowCost" | "General").
+#   stage_weight        blank = all. SUBSTRING match against the ASNS stage label, so
+#                       "Starter" covers "< 5g (Starter)" (same convention as
+#                       premix_mask.json stage_overrides).
+#   processing_method   blank = all. Exact match ("pelleted" | "extruded") — the same
+#                       ingredient often tolerates a higher rate in a pellet than in an
+#                       extrudate, or vice versa.
+#   min_inclusion       mass FRACTION of total feed in [0, 1] — write 0.15 for 15%, NOT 15.
+#                       Blank = 0 (no floor).
+#   max_inclusion       mass FRACTION of total feed in [0, 1] — write 0.15 for 15%, NOT 15.
+#                       Blank = no ceiling. A value outside [0, 1] fails at load time.
+#   note                free text, not read by the engine.
+#
+# The API reports these bounds back as PERCENTAGES (max_inclusion_percent: 15.0); only
+# this file and the request payload use fractions.
+#
+# When several rows match a request, the most specific row wins (most non-blank scope
+# columns); ties are resolved toward the tighter bound. Each direction resolves
+# independently. A row here supersedes the pool CSV's generated `max_inclusion` column
+# for that ingredient.
+#
+# The rows below come from the max-inclusion table supplied to the project in October
+# 2026 (one maximum per species, as % of total diet). Each table row is expanded to every
+# pool code that is the same ingredient as its sample name; `note` names the source row.
+# Table rows whose ingredient has no FICD composition are not listed here: the engine
+# cannot formulate with them, so a limit would have no effect. Ingredients not named
+# below stay bounded only by nutrient, toxin and opt-in advisory constraints.
+code,species,production_system,stage_weight,processing_method,min_inclusion,max_inclusion,note
+31408,Nile Tilapia,,,,,0.1,table row 9: Sunflower cake
+31408,African Catfish,,,,,0.1,table row 9: Sunflower cake
+31409,Nile Tilapia,,,,,0.1,table row 9: Sunflower cake
+31409,African Catfish,,,,,0.1,table row 9: Sunflower cake
+14002,Nile Tilapia,,,,,0.05,table row 13: Ochonga / Shrimps
+14002,African Catfish,,,,,0.025,table row 13: Ochonga / Shrimps
+14007,Nile Tilapia,,,,,0.05,table row 13: Ochonga / Shrimps
+14007,African Catfish,,,,,0.025,table row 13: Ochonga / Shrimps
+31264,Nile Tilapia,,,,,0.25,table row 14: Soybean full fat
+31264,African Catfish,,,,,0.25,table row 14: Soybean full fat
+31265,Nile Tilapia,,,,,0.25,table row 14: Soybean full fat
+31265,African Catfish,,,,,0.25,table row 14: Soybean full fat
+31235,Nile Tilapia,,,,,0.5,table row 15: Soybean meal dry
+31235,African Catfish,,,,,0.25,table row 15: Soybean meal dry
+31236,Nile Tilapia,,,,,0.5,table row 15: Soybean meal dry
+31236,African Catfish,,,,,0.25,table row 15: Soybean meal dry
+31237,Nile Tilapia,,,,,0.5,table row 15: Soybean meal dry
+31237,African Catfish,,,,,0.25,table row 15: Soybean meal dry
+31238,Nile Tilapia,,,,,0.5,table row 15: Soybean meal dry
+31238,African Catfish,,,,,0.25,table row 15: Soybean meal dry
+31252,Nile Tilapia,,,,,0.5,table row 15: Soybean meal dry
+31252,African Catfish,,,,,0.25,table row 15: Soybean meal dry
+31257,Nile Tilapia,,,,,0.5,table row 15: Soybean meal dry
+31257,African Catfish,,,,,0.25,table row 15: Soybean meal dry
+31262,Nile Tilapia,,,,,0.5,table row 15: Soybean meal dry
+31262,African Catfish,,,,,0.25,table row 15: Soybean meal dry
+31263,Nile Tilapia,,,,,0.5,table row 15: Soybean meal dry
+31263,African Catfish,,,,,0.25,table row 15: Soybean meal dry
+30307,Nile Tilapia,,,,,0.1,table row 16: Cassava dried
+30307,African Catfish,,,,,0.05,table row 16: Cassava dried
+30310,Nile Tilapia,,,,,0.1,table row 16: Cassava dried
+30310,African Catfish,,,,,0.05,table row 16: Cassava dried
+30316,Nile Tilapia,,,,,0.1,table row 16: Cassava dried
+30316,African Catfish,,,,,0.05,table row 16: Cassava dried
+31147,Nile Tilapia,,,,,0.15,table row 17: Sorghum meal
+31147,African Catfish,,,,,0.075,table row 17: Sorghum meal
+31148,Nile Tilapia,,,,,0.15,table row 17: Sorghum meal
+31148,African Catfish,,,,,0.075,table row 17: Sorghum meal
+31149,Nile Tilapia,,,,,0.15,table row 17: Sorghum meal
+31149,African Catfish,,,,,0.075,table row 17: Sorghum meal
+31151,Nile Tilapia,,,,,0.15,table row 17: Sorghum meal
+31151,African Catfish,,,,,0.075,table row 17: Sorghum meal
+30557,Nile Tilapia,,,,,0.15,table row 18: Groundnut cake
+30557,African Catfish,,,,,0.1,table row 18: Groundnut cake
+30570,Nile Tilapia,,,,,0.15,table row 18: Groundnut cake
+30570,African Catfish,,,,,0.1,table row 18: Groundnut cake
+30845,Nile Tilapia,,,,,0.15,table row 18: Groundnut cake
+30845,African Catfish,,,,,0.1,table row 18: Groundnut cake
+30846,Nile Tilapia,,,,,0.15,table row 18: Groundnut cake
+30846,African Catfish,,,,,0.1,table row 18: Groundnut cake
+30847,Nile Tilapia,,,,,0.15,table row 18: Groundnut cake
+30847,African Catfish,,,,,0.1,table row 18: Groundnut cake
+30935,Nile Tilapia,,,,,0.3,table row 19: Rice bran
+30935,African Catfish,,,,,0.15,table row 19: Rice bran
+30936,Nile Tilapia,,,,,0.3,table row 19: Rice bran
+30936,African Catfish,,,,,0.15,table row 19: Rice bran
+30937,Nile Tilapia,,,,,0.3,table row 19: Rice bran
+30937,African Catfish,,,,,0.15,table row 19: Rice bran
+30938,Nile Tilapia,,,,,0.3,table row 19: Rice bran
+30938,African Catfish,,,,,0.15,table row 19: Rice bran
+30939,Nile Tilapia,,,,,0.3,table row 19: Rice bran
+30939,African Catfish,,,,,0.15,table row 19: Rice bran
+30940,Nile Tilapia,,,,,0.3,table row 19: Rice bran
+30940,African Catfish,,,,,0.15,table row 19: Rice bran
+30949,Nile Tilapia,,,,,0.3,table row 19: Rice bran
+30949,African Catfish,,,,,0.15,table row 19: Rice bran
+30403,Nile Tilapia,,,,,0.1,table row 20: Cottonseed cake
+30403,African Catfish,,,,,0.15,table row 20: Cottonseed cake
+30404,Nile Tilapia,,,,,0.1,table row 20: Cottonseed cake
+30404,African Catfish,,,,,0.15,table row 20: Cottonseed cake
+30405,Nile Tilapia,,,,,0.1,table row 20: Cottonseed cake
+30405,African Catfish,,,,,0.15,table row 20: Cottonseed cake
+30406,Nile Tilapia,,,,,0.1,table row 20: Cottonseed cake
+30406,African Catfish,,,,,0.15,table row 20: Cottonseed cake
+31617,Nile Tilapia,,,,,0.25,table row 21: Wheat pollard
+31617,African Catfish,,,,,0.15,table row 21: Wheat pollard
+30212,Nile Tilapia,,,,,0.15,table row 22: Brewery and distillery grains
+30212,African Catfish,,,,,0.1,table row 22: Brewery and distillery grains
+30373,Nile Tilapia,,,,,0.15,table row 22: Brewery and distillery grains
+30373,African Catfish,,,,,0.1,table row 22: Brewery and distillery grains
+30505,Nile Tilapia,,,,,0.15,table row 22: Brewery and distillery grains
+30505,African Catfish,,,,,0.1,table row 22: Brewery and distillery grains
+30506,Nile Tilapia,,,,,0.15,table row 22: Brewery and distillery grains
+30506,African Catfish,,,,,0.1,table row 22: Brewery and distillery grains
+30507,Nile Tilapia,,,,,0.15,table row 22: Brewery and distillery grains
+30507,African Catfish,,,,,0.1,table row 22: Brewery and distillery grains
+30508,Nile Tilapia,,,,,0.15,table row 22: Brewery and distillery grains
+30508,African Catfish,,,,,0.1,table row 22: Brewery and distillery grains
+30509,Nile Tilapia,,,,,0.15,table row 22: Brewery and distillery grains
+30509,African Catfish,,,,,0.1,table row 22: Brewery and distillery grains
+30510,Nile Tilapia,,,,,0.15,table row 22: Brewery and distillery grains
+30510,African Catfish,,,,,0.1,table row 22: Brewery and distillery grains
+30511,Nile Tilapia,,,,,0.15,table row 22: Brewery and distillery grains
+30511,African Catfish,,,,,0.1,table row 22: Brewery and distillery grains
+30512,Nile Tilapia,,,,,0.15,table row 22: Brewery and distillery grains
+30512,African Catfish,,,,,0.1,table row 22: Brewery and distillery grains
+30513,Nile Tilapia,,,,,0.15,table row 22: Brewery and distillery grains
+30513,African Catfish,,,,,0.1,table row 22: Brewery and distillery grains
+30517,Nile Tilapia,,,,,0.15,table row 22: Brewery and distillery grains
+30517,African Catfish,,,,,0.1,table row 22: Brewery and distillery grains
+30518,Nile Tilapia,,,,,0.15,table row 22: Brewery and distillery grains
+30518,African Catfish,,,,,0.1,table row 22: Brewery and distillery grains
+27002,Nile Tilapia,,,,,0.1,table row 23+33: Black soldier fly larvae meal
+27002,African Catfish,,,,,0.075,table row 23+33: Black soldier fly larvae meal
+27105,Nile Tilapia,,,,,0.1,table row 23+33: Black soldier fly larvae meal
+27105,African Catfish,,,,,0.075,table row 23+33: Black soldier fly larvae meal
+27106,Nile Tilapia,,,,,0.1,table row 23+33: Black soldier fly larvae meal
+27106,African Catfish,,,,,0.075,table row 23+33: Black soldier fly larvae meal
+27107,Nile Tilapia,,,,,0.1,table row 23+33: Black soldier fly larvae meal
+27107,African Catfish,,,,,0.075,table row 23+33: Black soldier fly larvae meal
+27108,Nile Tilapia,,,,,0.1,table row 23+33: Black soldier fly larvae meal
+27108,African Catfish,,,,,0.075,table row 23+33: Black soldier fly larvae meal
+27109,Nile Tilapia,,,,,0.1,table row 23+33: Black soldier fly larvae meal
+27109,African Catfish,,,,,0.075,table row 23+33: Black soldier fly larvae meal
+27110,Nile Tilapia,,,,,0.1,table row 23+33: Black soldier fly larvae meal
+27110,African Catfish,,,,,0.075,table row 23+33: Black soldier fly larvae meal
+27111,Nile Tilapia,,,,,0.1,table row 23+33: Black soldier fly larvae meal
+27111,African Catfish,,,,,0.075,table row 23+33: Black soldier fly larvae meal
+27112,Nile Tilapia,,,,,0.1,table row 23+33: Black soldier fly larvae meal
+27112,African Catfish,,,,,0.075,table row 23+33: Black soldier fly larvae meal
+27113,Nile Tilapia,,,,,0.1,table row 23+33: Black soldier fly larvae meal
+27113,African Catfish,,,,,0.075,table row 23+33: Black soldier fly larvae meal
+27003,Nile Tilapia,,,,,0.15,table row 24: Meal worm
+27003,African Catfish,,,,,0.075,table row 24: Meal worm
+27004,Nile Tilapia,,,,,0.15,table row 24: Meal worm
+27004,African Catfish,,,,,0.075,table row 24: Meal worm
+31405,Nile Tilapia,,,,,0.15,table row 26: Sunflower meal
+31405,African Catfish,,,,,0.2,table row 26: Sunflower meal
+31406,Nile Tilapia,,,,,0.15,table row 26: Sunflower meal
+31406,African Catfish,,,,,0.2,table row 26: Sunflower meal
+31407,Nile Tilapia,,,,,0.15,table row 26: Sunflower meal
+31407,African Catfish,,,,,0.2,table row 26: Sunflower meal
+31411,Nile Tilapia,,,,,0.15,table row 26: Sunflower meal
+31411,African Catfish,,,,,0.2,table row 26: Sunflower meal
+31413,Nile Tilapia,,,,,0.15,table row 26: Sunflower meal
+31413,African Catfish,,,,,0.2,table row 26: Sunflower meal
+31414,Nile Tilapia,,,,,0.15,table row 26: Sunflower meal
+31414,African Catfish,,,,,0.2,table row 26: Sunflower meal
+31415,Nile Tilapia,,,,,0.15,table row 26: Sunflower meal
+31415,African Catfish,,,,,0.2,table row 26: Sunflower meal
+31418,Nile Tilapia,,,,,0.15,table row 26: Sunflower meal
+31418,African Catfish,,,,,0.2,table row 26: Sunflower meal
+31419,Nile Tilapia,,,,,0.15,table row 26: Sunflower meal
+31419,African Catfish,,,,,0.2,table row 26: Sunflower meal
+31420,Nile Tilapia,,,,,0.15,table row 26: Sunflower meal
+31420,African Catfish,,,,,0.2,table row 26: Sunflower meal
+31421,Nile Tilapia,,,,,0.15,table row 26: Sunflower meal
+31421,African Catfish,,,,,0.2,table row 26: Sunflower meal
+30841,Nile Tilapia,,,,,0.18,table row 39+40: Cowpea
+30841,African Catfish,,,,,0.15,table row 39+40: Cowpea

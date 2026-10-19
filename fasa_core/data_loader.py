@@ -2,7 +2,7 @@
 
 Heavy lifting: reshape FICD from long to wide so each ingredient is a single
 row keyed by code, with one column per parameter. Cached in memory because the
-FICD table is 222k rows and we don't want to re-read on every API call.
+FICD table has ~200k rows and we don't want to re-read on every API call.
 """
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ def load_ficd_wide(data_dir: Optional[Path] = None) -> pd.DataFrame:
 
     Returns a frame indexed by ingredient `code` with columns:
         - description
-        - one column per parameter (277 of them)
+        - one column per parameter
     """
     long = pd.read_csv(_resolve(data_dir, FICD_FILENAME))
     long["quantity"] = pd.to_numeric(long["quantity"], errors="coerce")
