@@ -6,14 +6,8 @@ Run locally:
 Endpoints:
     GET  /health                                    liveness probe
     GET  /supported                                 enumerate species/stages/systems
-    GET  /ingredients                               list the active ingredient pool
     POST /formulate                                 run the LP
-    POST /validate-recipe                           recompute composition for an explicit recipe
-    POST /evaluate-recipe                           score a self-reported recipe against the spec
-
-Both POST endpoints accept optional `ficd_overrides` so a caller can substitute
-its own nutrient values for named ingredients. Parameters backing a TX*
-toxicity ceiling are refused.
+    POST /validate-recipe                           score an explicit recipe (composition + inclusion limits)
 """
 
 from __future__ import annotations
@@ -38,7 +32,9 @@ from fasa_core.config.defaults import (
     SUPPORTED_SPECIES,
 )
 from fasa_core.data_loader import list_supported_stages, load_ficd_wide
+from fasa_core.inclusion_limits import ingredient_limit_rows, nutrient_limit_rows
 from fasa_core.ingredient_pool import load_pool, reference_nutrients
+from fasa_core.evaluator import evaluate_recipe
 from fasa_core.models import (
     ErrorResponse,
     EvaluateRecipeRequest,
@@ -51,9 +47,8 @@ from fasa_core.models import (
     ValidateRecipeRequest,
     ValidateRecipeResponse,
 )
-from fasa_core.evaluator import evaluate_recipe
 from fasa_core.optimizer import formulate
-from fasa_core.validator import compute_composition
+from fasa_core.validator import validate_recipe as validate_recipe_core
 
 LOGGER = logging.getLogger("fasa_api")
 
@@ -107,6 +102,13 @@ def _readiness_check() -> tuple[bool, str]:
         load_ficd_wide()
     except Exception as exc:
         return False, f"Failed to preload FICD table: {exc}"
+    try:
+        # Malformed inclusion limits raise on load; catch that at deploy time
+        # rather than on the first /formulate call.
+        nutrient_limit_rows()
+        ingredient_limit_rows()
+    except Exception as exc:
+        return False, f"Failed to load inclusion limits: {exc}"
     return True, "ready"
 
 
@@ -171,35 +173,6 @@ def supported(_: None = Depends(_require_auth)) -> SupportedResponse:
             "stages_by_species_and_system": out}
 
 
-@app.get(
-    "/ingredients",
-    response_model=IngredientsResponse,
-    tags=["api"],
-    summary="List selectable ingredients (the active availability pool)",
-    responses={
-        401: {"model": ErrorResponse, "description": "Missing or invalid token"},
-    },
-)
-def ingredients(_: None = Depends(_require_auth)) -> IngredientsResponse:
-    pool = load_pool()
-    nutrients = reference_nutrients([r.code for r in pool])
-    return {
-        "ingredients": [
-            {
-                "code": r.code,
-                "description": r.description,
-                "category": r.cls,
-                "is_fishmeal": r.is_fishmeal,
-                "is_binder": r.is_binder,
-                "max_inclusion": r.max_inclusion,
-                "countries": sorted(r.countries),
-                "nutrients": nutrients.get(r.code, {}),
-            }
-            for r in pool
-        ]
-    }
-
-
 @app.post(
     "/formulate",
     response_model=FormulateResponse,
@@ -257,6 +230,8 @@ def formulate_endpoint(
             custom_premix_mask_codes=req.custom_premix_mask_codes,
             batch_size_kg=req.batch_size_kg,
             country=req.country,
+            nutrient_limits=req.nutrient_limits,
+            ingredient_limits=req.ingredient_limits,
             ficd_overrides=req.ficd_overrides,
         )
         elapsed_ms = (time.perf_counter() - started_at) * 1000.0
@@ -278,7 +253,7 @@ def formulate_endpoint(
     "/validate-recipe",
     response_model=ValidateRecipeResponse,
     tags=["api"],
-    summary="Recompute composition for an explicit recipe",
+    summary="Score an explicit recipe against composition and inclusion limits",
     responses={
         400: {"model": ErrorResponse, "description": "Bad request"},
         401: {"model": ErrorResponse, "description": "Missing or invalid token"},
@@ -294,8 +269,53 @@ def validate_recipe(
             status_code=400,
             detail=_error("invalid_fraction", "All fraction values must be within [0,1]."),
         )
-    df = compute_composition(req.fractions, parameters=req.parameters)
-    return {"composition": df["value"].round(6).to_dict()}
+    try:
+        return validate_recipe_core(
+            req.fractions,
+            parameters=req.parameters,
+            species=req.species,
+            stage=req.stage,
+            production_system=req.production_system,
+            processing_method=req.processing_method,
+            premix_enabled=req.premix_enabled,
+            nutrient_limits=req.nutrient_limits,
+            ingredient_limits=req.ingredient_limits,
+        )
+    except ValueError as e:
+        # e.g. a species/stage/production_system triple with no ASNS rows
+        raise HTTPException(
+            status_code=400,
+            detail=_error("invalid_request", "Recipe validation request is invalid.", str(e)),
+        ) from e
+
+
+@app.get(
+    "/ingredients",
+    response_model=IngredientsResponse,
+    tags=["api"],
+    summary="List selectable ingredients (the active availability pool)",
+    responses={
+        401: {"model": ErrorResponse, "description": "Missing or invalid token"},
+    },
+)
+def ingredients(_: None = Depends(_require_auth)) -> IngredientsResponse:
+    pool = load_pool()
+    nutrients = reference_nutrients([r.code for r in pool])
+    return {
+        "ingredients": [
+            {
+                "code": r.code,
+                "description": r.description,
+                "category": r.cls,
+                "is_fishmeal": r.is_fishmeal,
+                "is_binder": r.is_binder,
+                "max_inclusion": r.max_inclusion,
+                "countries": sorted(r.countries),
+                "nutrients": nutrients.get(r.code, {}),
+            }
+            for r in pool
+        ]
+    }
 
 
 @app.post(

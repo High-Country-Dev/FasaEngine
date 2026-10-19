@@ -91,6 +91,12 @@ def premix_mask_codes(stage: str | None = None,
     return base
 
 
+def duplicate_of(spec_code: str) -> str | None:
+    """The code whose requirement this spec restates in another unit, or None."""
+    entry = _crosswalk_raw().get(spec_code)
+    return entry.get("duplicate_of") if isinstance(entry, dict) else None
+
+
 def spec_label(spec_code: str) -> str:
     cw = _crosswalk_raw()
     if spec_code in cw and isinstance(cw[spec_code], dict):

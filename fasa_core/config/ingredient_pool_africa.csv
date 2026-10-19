@@ -258,6 +258,7 @@ code,description,class,is_fishmeal,is_binder,max_inclusion,countries
 30915,"Rapeseed/Canola meal, double low, 36% CP",protein_meal,0,0,,KE
 30916,"Rapeseed, seed",protein_meal,0,0,,KE
 30917,"Rapeseed/Canola meal, 36% CP",protein_meal,0,0,,KE
+30918,"Fermented rapeseed meal, 34% CP",protein_meal,0,0,,ZM
 30943,Rice protein meal,protein_meal,0,0,,"KE,NG,ZM"
 30947,"Rice, meal",protein_meal,0,0,,"KE,NG,ZM"
 30950,"Rice protein meal, 45% CP, I-PRO, I-Soch",protein_meal,0,0,,ZM
