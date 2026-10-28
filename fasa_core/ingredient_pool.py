@@ -28,7 +28,9 @@ class IngredientRecord:
     code: str
     description: str
     cls: str                         # informational grouping label; not used by the LP
-    max_inclusion: Optional[float]   # None ⇒ no per-ingredient cap
+    is_fishmeal: bool = False        # group tag carried for callers; not used by the LP
+    is_binder: bool = False          # group tag carried for callers; not used by the LP
+    max_inclusion: Optional[float] = None   # None ⇒ no per-ingredient cap
     countries: frozenset[str] = field(default_factory=frozenset)  # ISO-2 local-availability tags
 
 
@@ -56,6 +58,8 @@ def _load_full_pool() -> tuple[IngredientRecord, ...]:
             code=str(r["code"]).strip(),
             description=str(r["description"]),
             cls=str(r["class"]),
+            is_fishmeal=bool(int(r.get("is_fishmeal", 0) or 0)),
+            is_binder=bool(int(r.get("is_binder", 0) or 0)),
             max_inclusion=(
                 float(r["max_inclusion"]) if pd.notna(r.get("max_inclusion")) else None
             ),
