@@ -54,7 +54,12 @@ def test_ingredients_returns_pool_with_country_tags():
     r = client.get("/ingredients", headers={"Authorization": "Bearer abc123"})
     assert r.status_code == 200
     pool = r.json()["ingredients"]
-    assert len(pool) > 300
+    assert len(pool) > 250
+    assert not [
+        line
+        for line in pool
+        if line["description"].startswith(("Vitamin premix", "Mineral premix"))
+    ]
     supported = set(
         client.get("/supported", headers={"Authorization": "Bearer abc123"})
         .json()["countries"]

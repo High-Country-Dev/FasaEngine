@@ -117,9 +117,6 @@ def evaluate_recipe(
     fractions: dict[str, float],
     *,
     processing_method: str = DEFAULT_PROCESSING_METHOD,
-    premix_enabled: bool = True,
-    premix_rate: float = DEFAULT_PREMIX_RATE,
-    custom_premix_mask_codes: Optional[list[str]] = None,
     country: Optional[str] = None,
     ficd_overrides: Optional[dict[str, dict[str, float]]] = None,
 ) -> EvaluateRecipeResponse:
@@ -154,9 +151,6 @@ def evaluate_recipe(
         production_system=production_system,
         pool=pool,
         processing_method=processing_method,
-        premix_enabled=premix_enabled,
-        premix_rate=premix_rate,
-        premix_mask_override=custom_premix_mask_codes,
         ficd_overrides=ficd_overrides,
     )
 

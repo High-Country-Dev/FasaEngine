@@ -364,9 +364,6 @@ def evaluate_recipe_endpoint(
             production_system=req.production_system,
             fractions=req.fractions,
             processing_method=req.processing_method,
-            premix_enabled=req.premix_enabled,
-            premix_rate=req.premix_rate,
-            custom_premix_mask_codes=req.custom_premix_mask_codes,
             country=req.country,
             ficd_overrides=req.ficd_overrides,
         )

@@ -103,7 +103,7 @@ def test_a_recipe_the_optimiser_produced_evaluates_as_in_spec():
             "stage": stage,
             "production_system": "General-LowCost",
             "prices": _priced_pool(),
-            "premix_enabled": True,
+            "premix_price": 2.5,
         },
     )
     assert formulated.status_code == 200
@@ -124,7 +124,6 @@ def test_a_recipe_the_optimiser_produced_evaluates_as_in_spec():
             "stage": stage,
             "production_system": "General-LowCost",
             "fractions": fractions,
-            "premix_enabled": True,
         },
     )
     assert evaluated.status_code == 200
