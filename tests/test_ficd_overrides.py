@@ -36,6 +36,7 @@ def _formulate(client, stage, overrides=None):
         "stage": stage,
         "production_system": "General-LowCost",
         "prices": _prices(),
+        "premix_price": 2.5,
     }
     if overrides is not None:
         body["ficd_overrides"] = overrides

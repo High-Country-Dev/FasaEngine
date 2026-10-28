@@ -191,13 +191,13 @@ def formulate_endpoint(
 ) -> FormulateResponse:
     started_at = time.perf_counter()
     LOGGER.info(
-        "formulate.request species=%s stage=%s system=%s country=%s prices=%d premix_enabled=%s",
+        "formulate.request species=%s stage=%s system=%s country=%s prices=%d premix_rate=%s",
         req.species,
         req.stage,
         req.production_system,
         req.country,
         len(req.prices),
-        req.premix_enabled,
+        req.premix_rate,
     )
     if req.species not in SUPPORTED_SPECIES:
         raise HTTPException(
@@ -223,11 +223,8 @@ def formulate_endpoint(
             production_system=req.production_system,
             prices=req.prices,
             processing_method=req.processing_method,
-            premix_enabled=req.premix_enabled,
             premix_rate=req.premix_rate,
-            max_fishmeal_cost_share=req.max_fishmeal_cost_share,
-            max_binder_inclusion=req.max_binder_inclusion,
-            custom_premix_mask_codes=req.custom_premix_mask_codes,
+            premix_price=req.premix_price,
             batch_size_kg=req.batch_size_kg,
             country=req.country,
             nutrient_limits=req.nutrient_limits,
@@ -277,7 +274,6 @@ def validate_recipe(
             stage=req.stage,
             production_system=req.production_system,
             processing_method=req.processing_method,
-            premix_enabled=req.premix_enabled,
             nutrient_limits=req.nutrient_limits,
             ingredient_limits=req.ingredient_limits,
         )
@@ -368,9 +364,6 @@ def evaluate_recipe_endpoint(
             production_system=req.production_system,
             fractions=req.fractions,
             processing_method=req.processing_method,
-            premix_enabled=req.premix_enabled,
-            premix_rate=req.premix_rate,
-            custom_premix_mask_codes=req.custom_premix_mask_codes,
             country=req.country,
             ficd_overrides=req.ficd_overrides,
         )

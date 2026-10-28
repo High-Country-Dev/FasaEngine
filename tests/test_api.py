@@ -3,7 +3,7 @@ import os
 from fastapi.testclient import TestClient
 
 from fasa_api.main import app
-from tests.test_smoke import DEMO_PRICES
+from tests.test_smoke import BASE
 
 
 def _client(auth_required: bool = True, token: str = "test-token") -> TestClient:
@@ -54,7 +54,12 @@ def test_ingredients_returns_pool_with_country_tags():
     r = client.get("/ingredients", headers={"Authorization": "Bearer abc123"})
     assert r.status_code == 200
     pool = r.json()["ingredients"]
-    assert len(pool) > 300
+    assert len(pool) > 250
+    assert not [
+        line
+        for line in pool
+        if line["description"].startswith(("Vitamin premix", "Mineral premix"))
+    ]
     supported = set(
         client.get("/supported", headers={"Authorization": "Bearer abc123"})
         .json()["countries"]
@@ -67,12 +72,7 @@ def test_ingredients_returns_pool_with_country_tags():
 
 def test_formulate_rejects_unsupported_country():
     client = _client(auth_required=True, token="abc123")
-    payload = {
-        "species": "Nile Tilapia",
-        "stage": "< 5g (Starter)",
-        "prices": {"30355": 0.30},
-        "country": "US",
-    }
+    payload = {**BASE, "country": "US"}
     r = client.post(
         "/formulate",
         json=payload,
@@ -99,9 +99,7 @@ def test_formulate_accepts_inclusion_limits():
     """Both limit layers travel through the HTTP surface and shape the response."""
     client = _client(auth_required=True, token="abc123")
     payload = {
-        "species": "Nile Tilapia",
-        "stage": "< 5g (Starter)",
-        "prices": DEMO_PRICES,
+        **BASE,
         "nutrient_limits": {"PA05": {"max": 8.0}},
         "ingredient_limits": {"30355": {"max": 0.35}},
     }
@@ -121,9 +119,7 @@ def test_formulate_accepts_inclusion_limits():
 def test_formulate_rejects_an_out_of_range_ingredient_limit():
     client = _client(auth_required=True, token="abc123")
     payload = {
-        "species": "Nile Tilapia",
-        "stage": "< 5g (Starter)",
-        "prices": {"30355": 0.30},
+        **BASE,
         "ingredient_limits": {"30355": {"max": 1.5}},  # >100% of feed mass
     }
     r = client.post("/formulate", json=payload, headers={"Authorization": "Bearer abc123"})
@@ -148,7 +144,7 @@ def test_validate_recipe_checks_inclusion_rates():
     """Inclusion limits travel through the HTTP surface and flag a breach."""
     client = _client(auth_required=True, token="abc123")
     payload = {
-        "fractions": {"31605": 0.40, "31621": 0.595},
+        "fractions": {"31605": 0.40, "31621": 0.58},
         "parameters": [],
         "species": "Nile Tilapia",
         "stage": "< 5g (Starter)",
@@ -160,7 +156,7 @@ def test_validate_recipe_checks_inclusion_rates():
     assert r.status_code == 200
     body = r.json()
     assert body["in_limits"] is False
-    assert body["total_inclusion_percent"] == 99.5
+    assert body["total_inclusion_percent"] == 98.0
     bran = next(c for c in body["inclusion_checks"] if c["code"] == "31605")
     assert (bran["max_inclusion_percent"], bran["in_limits"]) == (15.0, False)
     # full scope given, so the nutrient side was scored too
@@ -189,3 +185,16 @@ def test_validate_recipe_rejects_an_unknown_parameter():
                     headers={"Authorization": "Bearer abc123"})
     assert r.status_code == 400
     assert "sid_lys_porcine_percent" in r.json()["detail"]["details"]
+
+
+def test_removed_fields_are_rejected():
+    """Fields removed in 1.0.0 are a 422, not silently ignored."""
+    client = _client(auth_required=True, token="abc123")
+    headers = {"Authorization": "Bearer abc123"}
+    for field, value in [("premix_enabled", False), ("max_fishmeal_cost_share", 0.3),
+                         ("max_binder_inclusion", 0.1), ("custom_premix_mask_codes", [])]:
+        r = client.post("/formulate", json={**BASE, field: value}, headers=headers)
+        assert r.status_code == 422, field
+    r = client.post("/validate-recipe", headers=headers,
+                    json={"fractions": {"30355": 0.98}, "premix_enabled": True})
+    assert r.status_code == 422

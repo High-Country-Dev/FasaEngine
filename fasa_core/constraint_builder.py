@@ -17,9 +17,9 @@ Intermediate form per row:
     }
 
 The premix mask is applied here: masked spec codes never make it into the
-output. Toxin (TX*) maximums are NEVER masked even if the user passes a custom
-mask that includes them — the premix doesn't add toxins, and the safety
-ceilings on aflatoxin/gossypol/etc. are non-negotiable per the FASA brief.
+output. Toxin (TX*) maximums are NEVER masked, even if premix_mask.json lists
+them — the premix doesn't add toxins, and the safety ceilings on
+aflatoxin/gossypol/etc. are non-negotiable per the FASA brief.
 
 The nutrient inclusion-limit layer (`inclusion_limits`) is folded into the ASNS
 row set before emission, so the limits inherit the whole existing pipeline —
@@ -68,9 +68,6 @@ def build_constraints(
     production_system: str,
     pool: list[IngredientRecord],
     processing_method: str = "pelleted",
-    premix_enabled: bool = True,
-    premix_rate: float = 0.005,
-    premix_mask_override: Optional[list[str]] = None,
     nutrient_limits: Optional[dict[str, Bound]] = None,
     ficd_overrides: Optional[dict[str, dict[str, float]]] = None,
 ) -> tuple[list[LinearConstraint], list[str]]:
@@ -89,11 +86,8 @@ def build_constraints(
     ficd_pool = ficd_frame.set_index("code")
     warnings.extend(override_warnings)
 
-    mask = (
-        crosswalk.premix_mask_codes(stage, premix_mask_override)
-        if premix_enabled
-        else set()
-    )
+    # every feed carries the premix, so the specs it covers are always masked
+    mask = crosswalk.premix_mask_codes(stage)
 
     out: list[LinearConstraint] = []
 
@@ -110,7 +104,7 @@ def build_constraints(
         if code in mask and not code.startswith("TX") and source == "asns":
             # vit/trace-mineral satisfied by premix; skip silently
             continue
-        # toxins are NEVER masked, even via override. Neither is a row the limit layer
+        # toxins are NEVER masked. Neither is a row the limit layer
         # created or tightened — but a plain ASNS row for the same code stays masked,
         # so bounding zinc's maximum never resurrects the minimum the premix supplies.
 
