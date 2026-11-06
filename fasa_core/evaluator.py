@@ -18,6 +18,7 @@ from typing import Optional
 from .config.defaults import (
     DEFAULT_PREMIX_RATE,
     DEFAULT_PROCESSING_METHOD,
+    check_premix_rate,
     normalize_country,
 )
 from .constraint_builder import LinearConstraint, build_constraints
@@ -117,10 +118,16 @@ def evaluate_recipe(
     fractions: dict[str, float],
     *,
     processing_method: str = DEFAULT_PROCESSING_METHOD,
+    premix_rate: float = DEFAULT_PREMIX_RATE,
     country: Optional[str] = None,
     ficd_overrides: Optional[dict[str, dict[str, float]]] = None,
 ) -> EvaluateRecipeResponse:
     """Score an explicit recipe against the active specification.
+
+    Every feed carries the vitamin/mineral premix, and the specification credits
+    its vitamins and trace minerals at `premix_rate`. The caller's shares add up
+    to 100% of their own ingredients, so they are read as the part of the feed the
+    premix leaves (`1 - premix_rate`), which is how /formulate builds a feed.
 
     Raises
     ------
@@ -129,6 +136,7 @@ def evaluate_recipe(
         over-100% mix would silently misreport every nutrient, so we refuse.
     """
     country = normalize_country(country)
+    check_premix_rate(premix_rate)
 
     total = sum(fractions.values())
     if abs(total - 1.0) > FRACTION_SUM_TOLERANCE:
@@ -150,11 +158,13 @@ def evaluate_recipe(
         stage=stage,
         production_system=production_system,
         pool=pool,
+        premix_rate=premix_rate,
         processing_method=processing_method,
         ficd_overrides=ficd_overrides,
     )
 
-    report = [_line_for(con, fractions) for con in constraints]
+    feed = {code: share * (1.0 - premix_rate) for code, share in fractions.items()}
+    report = [_line_for(con, feed) for con in constraints]
 
     toxicity = [line for line in report if line.code.startswith(TOXIN_PREFIX)]
     nutrients = [line for line in report if not line.code.startswith(TOXIN_PREFIX)]

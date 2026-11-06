@@ -181,6 +181,7 @@ def test_toxicity_breaches_are_listed_before_nutrient_shortfalls():
 
 
 def _constraints_for(stage: str, pool):
+    from fasa_core.config.defaults import DEFAULT_PREMIX_RATE
     from fasa_core.constraint_builder import build_constraints
 
     cons, _ = build_constraints(
@@ -188,6 +189,7 @@ def _constraints_for(stage: str, pool):
         stage=stage,
         production_system="General-LowCost",
         pool=pool,
+        premix_rate=DEFAULT_PREMIX_RATE,
     )
     return cons
 
@@ -203,12 +205,13 @@ def test_a_nutrient_five_percent_below_its_minimum_still_fails():
 
     checked = 0
     for con in _constraints_for(stage, pool):
-        if con.restriction_type != "Minimum" or not con.rhs or not con.coeffs:
+        # a nutrient the premix supplies keeps that share whatever the ingredients do
+        if con.restriction_type != "Minimum" or not con.rhs or not con.coeffs or con.constant:
             continue
         line = _line_for(con, fractions)
         if line.achieved is None or line.achieved <= 0:
             continue
-        scaled = {k: v * (con.rhs * 0.95 / line.achieved) for k, v in fractions.items()}
+        scaled ={k: v * (con.rhs * 0.95 / line.achieved) for k, v in fractions.items()}
         assert _line_for(con, scaled).in_spec is False, con.spec_code
         checked += 1
         if checked >= 10:
@@ -240,12 +243,13 @@ def test_a_nutrient_at_half_its_minimum_still_fails():
 
     checked = 0
     for con in _constraints_for(stage, pool):
-        if con.restriction_type != "Minimum" or not con.rhs or not con.coeffs:
+        # a nutrient the premix supplies keeps that share whatever the ingredients do
+        if con.restriction_type != "Minimum" or not con.rhs or not con.coeffs or con.constant:
             continue
         line = _line_for(con, fractions)
         if line.achieved is None or line.achieved <= 0:
             continue
-        halved = {k: v * (con.rhs * 0.5 / line.achieved) for k, v in fractions.items()}
+        halved ={k: v * (con.rhs * 0.5 / line.achieved) for k, v in fractions.items()}
         assert _line_for(con, halved).in_spec is False, con.spec_code
         checked += 1
         if checked >= 5:
